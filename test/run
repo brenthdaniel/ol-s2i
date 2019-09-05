@@ -1,27 +1,43 @@
 #!/bin/bash -e
-test_dir=$(dirname $0)
-log_file=$(mktemp -u)
-s2i_log_file=$(mktemp -u)
-cid_file=$(mktemp -u)
+READLINK_EXEC="readlink -zf"
+MKTEMP_EXEC="mktemp --suffix=.cid"
+if [[ "$OSTYPE" =~ 'darwin' ]]; then
+  READLINK_EXEC="readlink"
+  MKTEMP_EXEC="mktemp"
+  ! type -a "greadlink" >&"/dev/null" || READLINK_EXEC="greadlink"
+  ! type -a "gmktemp" >&"/dev/null" || MKTEMP_EXEC="gmktemp"
+fi
 
+SCRIPT_DIR=$(dirname $0)
+_dir="$(dirname "${BASH_SOURCE[0]}")"
+test_dir="$($READLINK_EXEC ${_dir} || echo ${_dir})"
+log_file=$test_dir/test.log
+s2i_log_file=$test_dir/s2i.log
+cid_file=$test_dir/test.cid
 
 # Since we built the image locally, we don't want S2I attempt to pull
 # it from Docker hub
 s2i_args="--pull-policy=never"
 
-test_port=8080
+test_port=9080
 
 image_exists() {
   docker inspect $1 &>/dev/null
 }
 
 container_exists() {
+  echo "Checking container $(cat $cid_file)"
   image_exists $(cat $cid_file)
 }
 
 container_ip() {
-  docker inspect --format="{{ .NetworkSettings.IPAddress }}" $(cat $cid_file)
+  docker inspect --format='{{(index (index .NetworkSettings.Ports "9080/tcp") 0).HostIp}}' $(cat $cid_file) | sed 's/0.0.0.0/localhost/'
 }
+
+container_port() {
+  docker inspect --format="{{"{{"}}(index .NetworkSettings.Ports \"$test_port/tcp\" 0).HostPort {{"}}"}}" "$(cat "${cid_file}")"
+}
+
 
 prepare() {
   app=$1
@@ -30,11 +46,11 @@ prepare() {
     echo "ERROR: The image ${IMAGE_NAME}:${IMAGE_VERSION} must exist before this script is executed."
     exit 1
   fi
-  s2i build ${s2i_args} file://${test_dir}/$app ${IMAGE_NAME}:${IMAGE_VERSION} ${IMAGE_NAME}-testapp $@ >& $s2i_log_file
+  s2i build ${s2i_args} ${test_dir}/$app ${IMAGE_NAME}:${IMAGE_VERSION} ${IMAGE_NAME}-testapp $@ >& $s2i_log_file
 }
 
 run_test_application() {
-  docker run $@ --rm --cidfile=${cid_file} ${IMAGE_NAME}-testapp >& $log_file
+  docker run $@ --rm -p ${test_port}:${test_port} --cidfile=${cid_file} ${IMAGE_NAME}-testapp >& $log_file
 }
 
 cleanup() {
@@ -134,7 +150,6 @@ check_result $?
 
 cleanup 0
 
-
-
 cleanupFinal
+
 echo "Test SUCCESSFUL"

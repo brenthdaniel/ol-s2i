@@ -37,8 +37,7 @@ if [ -f "$LOCAL_SOURCE_DIR/pom.xml" ]; then
   pushd $LOCAL_SOURCE_DIR &> /dev/null
 
   if [ -z "$MAVEN_ARGS" ]; then
- #   export MAVEN_ARGS="package -Popenshift -DskipTests"
-    export MAVEN_ARGS="package -DskipTests"
+    export MAVEN_ARGS="package -Popenshift -DskipTests"
   fi
 
   # Append arguments to MAVEN_ARGS if necessary
