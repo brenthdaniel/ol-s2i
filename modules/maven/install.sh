@@ -9,6 +9,6 @@ microdnf install gzip
 
 microdnf remove gzip
 
-mkdir  -p $HOME/.m2/repository
-chown -R ol $HOME/.m2
-chmod -R ug+rwX $HOME/.m2
+mkdir  -p /home/default/.m2/repository
+chown -R 1001 /home/default/.m2
+chmod -R ug+rwX /home/default/.m2

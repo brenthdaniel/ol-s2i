@@ -85,5 +85,16 @@ if [ -d $S2I_DESTINATION/src/wlp/usr ]; then
    cp -R $S2I_DESTINATION/src/wlp/usr /opt/ol/wlp
 fi
 
+# Run configure again to pick up configuration from the environmentf
+echo "whoami: "
+whoami
+
+echo "perms:"
+ls -l /opt/ol/wlp/output
+
+echo "Configuring Server"
+echo "MP: $MP_MONITORING"
+/opt/ol/helpers/build/configure.sh
+
 echo "Application deployment finished! Please start up the Open Liberty container using the following command: docker run -P <name of image>"
 exit $rc

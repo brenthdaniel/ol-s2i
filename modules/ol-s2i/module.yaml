@@ -10,6 +10,7 @@ labels:
 - name: io.s2i.scripts-url
   value: *imgLocation
 execute:
-- script: configure.sh  
+- script: configure.sh
+
 
 

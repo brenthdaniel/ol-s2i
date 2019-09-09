@@ -41,13 +41,12 @@ modules:
 
   # Install selected modules (in order)
   install:
-    - name: user
     - name: ibmjdk8
     - name: maven
     - name: ol-s2i
 
 run:
-      user: 185
+      user: 1001
       cmd:
           - "/opt/ol/wlp/bin/server run defaultServer"
     

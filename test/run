@@ -15,6 +15,19 @@ log_file=$test_dir/test.log
 s2i_log_file=$test_dir/s2i.log
 cid_file=$test_dir/test.cid
 
+SNIPPETS_TARGET=/config/configDropins/overrides
+
+# Environment variables used to modify the Open Liberty configuration
+ENABLE_SSL_VAR="-e SSL=true"
+ENABLE_TLS_VAR="-e TLS=true"
+HTTP_ENDPOINT_VAR="-e HTTP_ENDPOINT=true"
+MP_HEALTH_CHECK_VAR="-e MP_HEALTH_CHECK=true"
+MP_MONITORING_VAR="-e MP_MONITORING=true"
+HZ_SESSION_CACHE_CLIENT_VAR="-e HZ_SESSION_CACHE=client"
+HZ_SESSION_CACHE_EMBEDDED_VAR="-e HZ_SESSION_CACHE=embedded"
+IIOP_ENDPOINT_VAR="-e IIOP_ENDPOINT=true"
+JMS_ENDPOINT_VAR="-e JMS_ENDPOINT=true"
+
 # Since we built the image locally, we don't want S2I attempt to pull
 # it from Docker hub
 s2i_args="--pull-policy=never"
@@ -22,8 +35,10 @@ s2i_args="--pull-policy=never"
 test_port=9080
 
 image_exists() {
+  echo "Checking image $1"
   docker inspect $1 &>/dev/null
 }
+
 
 container_exists() {
   echo "Checking container $(cat $cid_file)"
@@ -53,12 +68,35 @@ run_test_application() {
   docker run $@ --rm -p ${test_port}:${test_port} --cidfile=${cid_file} ${IMAGE_NAME}-testapp >& $log_file
 }
 
+run_test_mp_monitoring() {
+  docker exec $(cat $cid_file) cat $SNIPPETS_TARGET/mp-monitoring.xml
+  check_result $?
+}
+
+run_test_mp_health_check() {
+  docker exec $(cat $cid_file) cat $SNIPPETS_TARGET/mp-health-check.xml
+  check_result $?
+}
+
+run_test_jms_endpoint() {
+  docker exec $(cat $cid_file) cat $SNIPPETS_TARGET/jms-endpoint.xml
+  check_result $?
+}
+
+run_test_jms_endpoint_ssl() {
+  docker exec $(cat $cid_file) cat $SNIPPETS_TARGET/jms-ssl-endpoint.xml
+  check_result $?
+}
+
 cleanup() {
-  if container_exists; then
-    docker stop $(cat $cid_file)
+  echo "Cleanup for test, cid $(cat $cid_file)"
+  if container_exists; then  
     if [[ $1 != "0" ]]; then
+      echo "Viewing docker logs"
       docker logs $(cat $cid_file)
     fi
+    echo "Stopping container $(cat $cid_file)"
+    docker stop $(cat $cid_file) || true
   fi
   if image_exists ${IMAGE_NAME}-testapp; then
     docker rmi -f ${IMAGE_NAME}-testapp
@@ -150,6 +188,46 @@ check_result $?
 
 cleanup 0
 
+# CONFIGURATION TESTS
+# These are simple tests that make sure that environment variables passed to s2i result
+# in configuration files being copied to configDropins
+
+echo "MicroProfile Monitoring Configuration Test"
+prepare test-app $MP_MONITORING_VAR
+run_test_application  &
+wait_for_cid
+test_connection
+check_result $?
+run_test_mp_monitoring
+cleanup 0
+
+echo "MicroProfile Health Configuration Test"
+prepare test-app $MP_HEALTH_CHECK_VAR
+run_test_application &
+wait_for_cid
+test_connection
+check_result $?
+run_test_mp_health_check
+cleanup 0
+
+echo "JMS Endpoint, No SSL Configuration Test"
+prepare test-app $JMS_ENDPOINT_VAR
+run_test_application &
+wait_for_cid
+test_connection
+check_result $?
+run_test_jms_endpoint
+cleanup 0
+
+echo "JMS Endpoint, SSL Configuration Test"
+prepare test-app $JMS_ENDPOINT_VAR $ENABLE_SSL_VAR
+run_test_application &
+wait_for_cid
+test_connection
+check_result $?
+run_test_jms_endpoint_ssl
+
 cleanupFinal
 
+# END CONFIGURATION TESTS
 echo "Test SUCCESSFUL"
