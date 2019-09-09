@@ -16,7 +16,7 @@ Building on Mac
   * `pip3 install docker`
   * `pip3 install docker_squash`
 
-You are ready to build WildFly images using cekit!
+You are ready to build OpenLiberty images using cekit!
 
 Known issues
 ============
@@ -27,8 +27,7 @@ run cekit first, it will fail but the target/image/Dockerfile is properly genera
 For example, to build the builder image:
 
 ```
-$ cd wildfly-builder-image
 $ cekit build docker
 $ cd target/image
-$ docker build -t wildfly/wildfly-centos7:latest .
+$ docker build -t openliberty/ol-javaee8-ubi-openshift:latest .
 ```
